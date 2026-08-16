@@ -1086,10 +1086,32 @@ fn path_allowed(path: &str, exact: &HashSet<String>, roots: &[PathGrant]) -> boo
 }
 
 #[cfg(feature = "yaml")]
+fn manifest_identity_string(path: PathBuf) -> String {
+    let raw = path.to_string_lossy();
+    #[cfg(target_os = "windows")]
+    {
+        // `canonicalize` returns verbatim Windows paths (`\\?\C:\...`), but
+        // the runtime application fingerprint reports Win32 spellings from
+        // `QueryFullProcessImageNameW`, so the stored grant identity must use
+        // the same spelling or an identical executable never matches its own
+        // manifest entry. Remove only the namespace prefix after
+        // canonicalization, exactly as `download_path_for_cdp` does for
+        // Chromium downloads.
+        if let Some(unc) = raw.strip_prefix(r"\\?\UNC\") {
+            return format!(r"\\{unc}");
+        }
+        if let Some(local) = raw.strip_prefix(r"\\?\") {
+            return local.to_owned();
+        }
+    }
+    raw.into_owned()
+}
+
+#[cfg(feature = "yaml")]
 fn canonical_manifest_path(path: &Path) -> Result<String, String> {
     if path.exists() {
         return std::fs::canonicalize(path)
-            .map(|path| path.to_string_lossy().into_owned())
+            .map(manifest_identity_string)
             .map_err(|error| error.to_string());
     }
 
@@ -1128,7 +1150,7 @@ fn canonical_manifest_path(path: &Path) -> Result<String, String> {
         }
         canonical.push(component);
     }
-    Ok(canonical.to_string_lossy().into_owned())
+    Ok(manifest_identity_string(canonical))
 }
 
 fn canonical_origin(raw: &str) -> Result<String, String> {

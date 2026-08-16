@@ -1,0 +1,58 @@
+name: Build patched cua-driver (Windows)
+
+on:
+  push:
+    branches: [fix/windows-verbatim-manifest-path]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: windows-${{ matrix.arch }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            target: aarch64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Ensure Rust target is installed
+        working-directory: libs/cua-driver/rust
+        shell: bash
+        run: |
+          rustup target add "${{ matrix.target }}"
+          rustup target list --installed | grep -Fx "${{ matrix.target }}"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            libs/cua-driver/rust/target
+          key: rust-cua-driver-rs-windows-${{ matrix.arch }}-${{ hashFiles('libs/cua-driver/rust/Cargo.lock', 'libs/cua-driver/rust/**/Cargo.toml') }}
+          restore-keys: |
+            rust-cua-driver-rs-windows-${{ matrix.arch }}-
+      - name: Run the manifest unit tests on the host toolchain
+        working-directory: libs/cua-driver/rust
+        run: cargo test --locked -p cua-driver-core session_manifest
+      - name: Build (release)
+        working-directory: libs/cua-driver/rust
+        run: cargo build --locked -p cua-driver -p cua-driver-uia -p cua-driver-sdk --release --target ${{ matrix.target }}
+      - name: Collect artifacts
+        shell: pwsh
+        run: |
+          $out = "patched-driver"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          $release = "libs/cua-driver/rust/target/${{ matrix.target }}/release"
+          foreach ($f in @("cua-driver.exe", "cua-driver-uia.exe", "cua_driver_sdk.dll")) {
+            Copy-Item "$release/$f" "$out/$f"
+          }
+          Get-FileHash -Algorithm SHA256 "$out/*" | Format-List | Out-String | Write-Host
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cua-driver-patched-${{ matrix.arch }}
+          path: patched-driver/
+          if-no-files-found: error
