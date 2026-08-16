@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.21.0](https://github.com/trycua/cua/compare/cua-driver-rs-v0.20.0...cua-driver-rs-v0.21.0) (2026-08-16)
+
+
+### Features
+
+* **cua-driver:** extend Project Centennial across desktop platforms ([#3189](https://github.com/trycua/cua/issues/3189)) ([a744308](https://github.com/trycua/cua/commit/a74430843663d3840dffbee04c2e112783ad238e))
+* **cua-driver:** Project Centennial preview ([#3188](https://github.com/trycua/cua/issues/3188)) ([61e51cd](https://github.com/trycua/cua/commit/61e51cddc48edcd0ae350a1744890c04951027f1))
+
 ## [0.20.0](https://github.com/trycua/cua/compare/cua-driver-rs-v0.19.3...cua-driver-rs-v0.20.0) (2026-08-15)
 
 
