@@ -1266,6 +1266,12 @@ ask:
         std::fs::create_dir_all(input.join("nested")).unwrap();
         std::fs::create_dir_all(&output).unwrap();
         let executable = std::fs::canonicalize(std::env::current_exe().unwrap()).unwrap();
+        // The live fingerprint reports Win32 spellings from
+        // QueryFullProcessImageNameW, never the verbatim form
+        // `fs::canonicalize` yields on Windows. Model that here, or the test
+        // exercises a spelling the runtime can never produce.
+        let runtime_executable =
+            win32_identity_spelling(executable.to_string_lossy().into_owned());
         let input = std::fs::canonicalize(input).unwrap();
         let output = std::fs::canonicalize(output).unwrap();
         let loaded = manifest(&format!(
@@ -1326,7 +1332,7 @@ allow:
                     "fingerprint": {
                         "pid": 42,
                         "start_time": 1,
-                        "executable": executable
+                        "executable": runtime_executable
                     }
                 }),
             )
@@ -1340,7 +1346,7 @@ allow:
                     "fingerprint": {
                         "pid": 42,
                         "start_time": 1,
-                        "executable": executable
+                        "executable": runtime_executable
                     }
                 }),
             )
@@ -1354,7 +1360,7 @@ allow:
                     "fingerprint": {
                         "pid": 42,
                         "start_time": 1,
-                        "executable": executable
+                        "executable": runtime_executable
                     }
                 }),
             )
