@@ -943,7 +943,7 @@ fn validate_applications(
                             .to_owned(),
                     );
                 }
-                canonical_manifest_path(path)
+                canonical_manifest_path(path).map(win32_identity_spelling)
             })
             .transpose()?;
         let all_windows = match raw.windows.as_deref().unwrap_or("all") {
@@ -1086,8 +1086,7 @@ fn path_allowed(path: &str, exact: &HashSet<String>, roots: &[PathGrant]) -> boo
 }
 
 #[cfg(feature = "yaml")]
-fn manifest_identity_string(path: PathBuf) -> String {
-    let raw = path.to_string_lossy();
+fn win32_identity_spelling(raw: String) -> String {
     #[cfg(target_os = "windows")]
     {
         // `canonicalize` returns verbatim Windows paths (`\\?\C:\...`), but
@@ -1096,7 +1095,9 @@ fn manifest_identity_string(path: PathBuf) -> String {
         // the same spelling or an identical executable never matches its own
         // manifest entry. Remove only the namespace prefix after
         // canonicalization, exactly as `download_path_for_cdp` does for
-        // Chromium downloads.
+        // Chromium downloads. Applied ONLY to application identities: file
+        // and directory grants keep the verbatim form their containment
+        // checks are built around.
         if let Some(unc) = raw.strip_prefix(r"\\?\UNC\") {
             return format!(r"\\{unc}");
         }
@@ -1104,14 +1105,14 @@ fn manifest_identity_string(path: PathBuf) -> String {
             return local.to_owned();
         }
     }
-    raw.into_owned()
+    raw
 }
 
 #[cfg(feature = "yaml")]
 fn canonical_manifest_path(path: &Path) -> Result<String, String> {
     if path.exists() {
         return std::fs::canonicalize(path)
-            .map(manifest_identity_string)
+            .map(|path| path.to_string_lossy().into_owned())
             .map_err(|error| error.to_string());
     }
 
@@ -1150,7 +1151,7 @@ fn canonical_manifest_path(path: &Path) -> Result<String, String> {
         }
         canonical.push(component);
     }
-    Ok(manifest_identity_string(canonical))
+    Ok(canonical.to_string_lossy().into_owned())
 }
 
 fn canonical_origin(raw: &str) -> Result<String, String> {
